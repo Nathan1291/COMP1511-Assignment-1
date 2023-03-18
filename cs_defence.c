@@ -163,7 +163,7 @@ int main(void) {
             }
             // Message in case there isn't enough money or is an invalid position
             else {
-                printf("Error: Tower creation unsuccessful. ")
+                printf("Error: Tower creation unsuccessful. ");
                 printf("Make sure you have at least $200 and that the tower is placed on a grass block with no entity.\n");
                 print_map(map, starting_lives, starting_money);
             }
