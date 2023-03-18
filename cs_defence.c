@@ -58,6 +58,8 @@ int within_bounds(int row, int col);
 
 int valid_tower_position(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col);
 
+int spawn_tower(struct tile map[MAP_ROWS][MAP_COLS], int starting_money);
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////// PROVIDED FUNCTION PROTOTYPE  ////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -138,10 +140,6 @@ int main(void) {
     char command;
     printf("Enter Command: ");
 
-    // Creating dependencies for the command loop
-    int tower_row;
-    int tower_col;
-
     // Checking if command loop is interrupted
     while (scanf(" %c", &command) != EOF) {
         // Spawning in enemies Command
@@ -153,20 +151,8 @@ int main(void) {
 
         // Spawning in towers
         if (command == 't') {
-            scanf("%d %d", &tower_row, &tower_col);
-            // Check if there is enough money and if it is a valid position, then add it
-            if (valid_tower_position(map, tower_row, tower_col) && starting_money > 200) {
-                map[tower_row][tower_col].entity = BASIC_TOWER;
-                starting_money -= 200;
-                printf("Tower successfully created!\n");
-                print_map(map, starting_lives, starting_money);
-            }
-            // Message in case there isn't enough money or is an invalid position
-            else {
-                printf("Error: Tower creation unsuccessful. ");
-                printf("Make sure you have at least $200 and that the tower is placed on a grass block with no entity.\n");
-                print_map(map, starting_lives, starting_money);
-            }
+            starting_money = spawn_tower(map, starting_money);
+            print_map(map, starting_lives, starting_money);
         }
 
         printf("Enter Command: ");
@@ -303,6 +289,24 @@ int valid_tower_position(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int
     }
     // Returns true if it passes all the tests
     return valid_pos;
+}
+
+int spawn_tower(struct tile map[MAP_ROWS][MAP_COLS], int starting_money) {
+    int tower_row;
+    int tower_col;
+    scanf("%d %d", &tower_row, &tower_col);
+    // Check if there is enough money and if it is a valid position, then add it
+    if (valid_tower_position(map, tower_row, tower_col) && starting_money > 200) {
+        map[tower_row][tower_col].entity = BASIC_TOWER;
+        starting_money -= 200;
+        printf("Tower successfully created!\n");
+    }
+    // Message in case there isn't enough money or is an invalid position
+    else {
+        printf("Error: Tower creation unsuccessful. ");
+        printf("Make sure you have at least $200 and that the tower is placed on a grass block with no entity.\n");
+    }
+    return starting_money;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
