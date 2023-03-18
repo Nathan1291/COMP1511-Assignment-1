@@ -54,6 +54,8 @@ void create_lake(struct tile map[MAP_ROWS][MAP_COLS]);
 
 void create_path(struct tile map[MAP_ROWS][MAP_COLS], int positions[4]);
 
+int within_bounds(int row, int col);
+
 int valid_tower_position(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -150,18 +152,19 @@ int main(void) {
         }
 
         // Spawning in towers
-        if (command =='t') {
+        if (command == 't') {
             scanf("%d %d", &tower_row, &tower_col);
-            // Check if there is enough money and it is a valid tower position, then add it
+            // Check if there is enough money and if it is a valid position, then add it
             if (valid_tower_position(map, tower_row, tower_col) && starting_money > 200) {
                 map[tower_row][tower_col].entity = BASIC_TOWER;
                 starting_money -= 200;
                 printf("Tower successfully created!\n");
                 print_map(map, starting_lives, starting_money);
             }
-            // Error message in case there isn't enough money or is an invalid tower position
+            // Message in case there isn't enough money or is an invalid position
             else {
-                printf("Error: Tower creation unsuccessful. Make sure you have at least $200 and that the tower is placed on a grass block with no entity.\n");
+                printf("Error: Tower creation unsuccessful. ")
+                printf("Make sure you have at least $200 and that the tower is placed on a grass block with no entity.\n");
                 print_map(map, starting_lives, starting_money);
             }
         }
@@ -180,8 +183,8 @@ int main(void) {
 /////////////////////////////  YOUR FUNCTIONS //////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+// Stage 1.2
 void create_enemies (struct tile map[MAP_ROWS][MAP_COLS], int row_start, int col_start, int num_enemies) {
-    // Stage 1.2
     // Load in the n number of initial enemies on the starting tiles
     // Don't change starting point if the number of enemies isn't positive
     if (num_enemies > 0) {
@@ -190,6 +193,7 @@ void create_enemies (struct tile map[MAP_ROWS][MAP_COLS], int row_start, int col
     }
 }
 
+// Stage 1.3
 int valid_lake_position(int lake_row, int lake_col, int lake_height, int lake_width) {
     // Stage 1.3
     // This is a function used in the function create_lake
@@ -199,9 +203,8 @@ int valid_lake_position(int lake_row, int lake_col, int lake_height, int lake_wi
     return lake_row < 0 || max_row > MAP_ROWS || lake_col < 0 || max_col > MAP_COLS;
 }
 
-
+// Stage 1.3
 void create_lake(struct tile map[MAP_ROWS][MAP_COLS]) {
-    // Stage 1.3
     // intialising variables
     int lake_row;
     int lake_col;
@@ -227,8 +230,8 @@ void create_lake(struct tile map[MAP_ROWS][MAP_COLS]) {
     }
 }
 
+// Stage 2.1
 void create_path(struct tile map[MAP_ROWS][MAP_COLS], int positions[4]) {
-    // Stage 2.1
     // positions = {row_start, col_start, row_end, col_end}
 
     // Printing message in preparation to take input
@@ -275,11 +278,19 @@ void create_path(struct tile map[MAP_ROWS][MAP_COLS], int positions[4]) {
     }
 }
 
+// Stage 2.3
+int within_bounds(int row, int col) {
+    // used in valid_tower_position to check if its within bounds
+    return row < 0 || row > MAP_ROWS || col < 0 || col > MAP_COLS;
+}
+
+// Stage 2.3
 int valid_tower_position(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col) {
+    // Stage 2.3
     // variable which tracks if it is a valid tower position or not
     int valid_pos = 1;
     // Checking if the position is within the bounds
-    if (tower_row < 0 || tower_row > MAP_ROWS || tower_col < 0 || tower_col > MAP_COLS) {
+    if (within_bounds(tower_row, tower_col)) {
         valid_pos = 0;
     }
     // Checking if the land on the tile is grass
