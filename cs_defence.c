@@ -46,7 +46,7 @@ struct tile {
 
 // TODO: Put your function prototypes here
 
-void create_enemies (struct tile map[MAP_ROWS][MAP_COLS], int row_start, int col_start);
+void create_enemies (struct tile map[MAP_ROWS][MAP_COLS], int row_start, int col_start, int num_enemies);
 
 int valid_position(int lake_row, int lake_col, int lake_height, int lake_width);
 
@@ -81,7 +81,7 @@ int main(void) {
     printf("Starting Money($): ");
     scanf(" %d", &starting_money);
 
-    // Stage 1.1 scan and load in starting and ending points
+    // Stage 1.1 scanning in starting and ending points
     int row_start;
     int col_start;
 
@@ -94,6 +94,7 @@ int main(void) {
     printf("End Point: ");
     scanf("%d %d", &row_end, &col_end);
 
+    // Stage 1.1 Loading in starting and ending points
     map[row_start][col_start].land = PATH_START;
     map[row_end][col_end].land = PATH_END;
 
@@ -101,8 +102,16 @@ int main(void) {
     // Stage 1.1 as well as the starting lives and money
     print_map(map, starting_lives, starting_money);
 
-    // Stage 1.2 Scan and load in the initial enemies
-    create_enemies(map, row_start, col_start);
+    // Stage 1.2 Scan in the initial enemies
+    int num_enemies;
+    printf("Initial Enemies: ");
+    scanf("%d", &num_enemies);
+
+    // Setting original n_enemies to be 0 so that create_enemies is reusable
+    map[row_start][col_start].n_enemies = 0;
+
+    // Stage 1.2 Load in the initial enemies
+    create_enemies(map, row_start, col_start, num_enemies);
 
     // Stage 1.2 Printing the map after loading in the enemies
     print_map(map, starting_lives, starting_money);
@@ -121,7 +130,23 @@ int main(void) {
     // Stage 2.1 Printing the map
     print_map(map, starting_lives, starting_money);
 
+    // Stage 2.2 Command Loop
+    char command;
+    printf("Enter Command: ");
 
+    // Checking if command loop is interrupted
+    while (scanf(" %c", &command) != EOF) {
+        // Spawning in enemies Command
+        if (command == 'e') {
+            scanf("%d", &num_enemies);
+            create_enemies(map, row_start, col_start, num_enemies);
+            print_map(map, starting_lives, starting_money);
+        }
+
+        printf("Enter Command: ");
+    }
+
+    printf("\nGame Over!\n");
 }
 
 
@@ -132,18 +157,13 @@ int main(void) {
 /////////////////////////////  YOUR FUNCTIONS //////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void create_enemies (struct tile map[MAP_ROWS][MAP_COLS], int row_start, int col_start) {
+void create_enemies (struct tile map[MAP_ROWS][MAP_COLS], int row_start, int col_start, int num_enemies) {
     // Stage 1.2
-    // Scan in the initial enemies
-    int num_enemies;
-    printf("Initial Enemies: ");
-    scanf("%d", &num_enemies);
-
     // Load in the n number of initial enemies on the starting tiles
     // Don't change starting point if the number of enemies isn't positive
     if (num_enemies > 0) {
         map[row_start][col_start].entity = ENEMY;
-        map[row_start][col_start].n_enemies = num_enemies;
+        map[row_start][col_start].n_enemies += num_enemies;
     }
 }
 
