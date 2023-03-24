@@ -72,6 +72,14 @@ int move_enemies(struct tile map[MAP_ROWS][MAP_COLS],
                   int path[MAP_ROWS * MAP_COLS][2],
                   int path_length);
 
+int has_tower(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col);
+
+int is_fortified(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col);
+
+int enough_money(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col, int *starting_money);
+
+void upgrade_tower(struct tile map[MAP_ROWS][MAP_COLS], int *starting_money);
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////// PROVIDED FUNCTION PROTOTYPE  ////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -184,6 +192,12 @@ int main(int argc, char *argv[]) {
                 printf("Oh no, you ran out of lives!");
                 break;
             }
+        }
+
+        // Stage 3.2 Upgrade tower
+        if (command == 'u') {
+            upgrade_tower(map, &starting_money);
+            print_map(map, starting_lives, starting_money);
         }
 
         printf("Enter Command: ");
@@ -399,6 +413,83 @@ int move_enemies(struct tile map[MAP_ROWS][MAP_COLS],
     }  
     return num_lives_lost;
 }
+
+// Stage 3.2, checks if there is a tower in the given tile
+int has_tower(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col) {
+    int val = 0;
+    if (map[tower_row][tower_col].entity == BASIC_TOWER) {
+        val = 1;   
+    }
+    else if (map[tower_row][tower_col].entity == POWER_TOWER) {
+        val = 1;   
+    }
+    else if (map[tower_row][tower_col].entity == FORTIFIED_TOWER) {
+        val = 1;   
+    }
+    return val;
+    }
+
+// Stage 3.2, Checks if there is a fortified tower in the given tile
+int is_fortified(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col) {
+    int val = 0;
+    if (map[tower_row][tower_col].entity == FORTIFIED_TOWER) {
+        val = 1;
+    }
+    return val;
+}
+
+// Stage 3.2, Checks if there is enough money for the upgrade
+int enough_money(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col, int *starting_money) {
+    int val = 1;
+    int money = *starting_money;
+    if (map[tower_row][tower_col].entity == BASIC_TOWER) {
+        if (money < 300) {
+            val = 0;
+        }
+    }
+    else if (map[tower_row][tower_col].entity == POWER_TOWER) {
+        if (money < 500) {
+            val = 0;
+        }
+    }
+    return val;
+}
+
+// Stage 3.2, upgrades the tower if the conditions are correct
+// else it outputs error messages
+void upgrade_tower(struct tile map[MAP_ROWS][MAP_COLS], int *starting_money) {
+    int tower_row;
+    int tower_col;
+    scanf("%d %d", &tower_row, &tower_col);
+
+    if (within_bounds(tower_row, tower_col)) {
+        printf("Error: Upgrade target is out-of-bounds.\n");
+    }
+    else if (!has_tower(map, tower_row, tower_col)) {
+        printf("Error: Upgrade target contains no tower entity.\n");
+    }
+    else if (is_fortified(map, tower_row, tower_col)) {
+        printf("Error: Tower cannot be upgraded further.\n");
+    }
+    else if (!enough_money(map, tower_row, tower_col, starting_money)) {
+        printf("Error: Insufficient Funds.\n");
+    }
+    else {
+        if (map[tower_row][tower_col].entity == BASIC_TOWER) {
+            map[tower_row][tower_col].entity = POWER_TOWER;
+
+            *starting_money -= 300;
+        }
+        else if (map[tower_row][tower_col].entity == POWER_TOWER) {
+            map[tower_row][tower_col].entity = FORTIFIED_TOWER;
+
+            *starting_money -= 500;
+        }
+        printf("Upgrade Successful!\n");
+    }
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// PROVIDED FUNCTIONS  ///////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
