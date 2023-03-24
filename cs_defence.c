@@ -58,7 +58,7 @@ void create_lake(struct tile map[MAP_ROWS][MAP_COLS]);
 void create_path(struct tile map[MAP_ROWS][MAP_COLS], 
                  int positions[4], 
                  int path[MAP_ROWS * MAP_COLS][2],
-                 int* path_length_ptr);
+                 int *path_length_ptr);
 
 int within_bounds(int row, int col);
 
@@ -79,6 +79,21 @@ int is_fortified(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_c
 int enough_money(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col, int *starting_money);
 
 void upgrade_tower(struct tile map[MAP_ROWS][MAP_COLS], int *starting_money);
+
+int attack_basic_and_powers(struct tile map[MAP_ROWS][MAP_COLS], 
+                         int curr_row, 
+                         int curr_col,
+                         int num_attack);
+
+int attack_fortified(struct tile map[MAP_ROWS][MAP_COLS], 
+                         int curr_row, 
+                         int curr_col,
+                         int num_attack);
+
+void attack(struct tile map[MAP_ROWS][MAP_COLS], 
+            int path[MAP_ROWS * MAP_COLS][2],
+            int *path_length_ptr,
+            int *starting_money);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////// PROVIDED FUNCTION PROTOTYPE  ////////////////////////////
@@ -194,9 +209,15 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // Stage 3.2 Upgrade tower
+        // Stage 3.2 Upgrade Tower
         if (command == 'u') {
             upgrade_tower(map, &starting_money);
+            print_map(map, starting_lives, starting_money);
+        }
+
+        // Stage 3.2 Tower Attacks
+        if (command == 'a') {
+            attack(map, path,  &path_length, &starting_money);
             print_map(map, starting_lives, starting_money);
         }
 
@@ -269,7 +290,7 @@ void create_lake(struct tile map[MAP_ROWS][MAP_COLS]) {
 void create_path(struct tile map[MAP_ROWS][MAP_COLS], 
                  int positions[4], 
                  int path[MAP_ROWS * MAP_COLS][2],
-                 int* path_length_ptr) {
+                 int *path_length_ptr) {
     // positions = {row_start, col_start, row_end, col_end}
     // initialising variable for later use
     int path_length_value;
@@ -392,11 +413,11 @@ int move_enemies(struct tile map[MAP_ROWS][MAP_COLS],
         // Checking if there is an enemy on the tile
         if (map[curr_row][curr_col].entity == ENEMY) {
             // finding the number of enemy in the tile
-            int tile_num_enemies = map[curr_row][curr_col].n_enemies;
+            int num_enemies = map[curr_row][curr_col].n_enemies;
 
             // Checking if the move will make the enemy reach the end
             if (i + num_move >= path_length) {
-                num_lives_lost += tile_num_enemies;
+                num_lives_lost += num_enemies;
                 map[curr_row][curr_col].entity = EMPTY;
                 map[curr_row][curr_col].n_enemies = 0;
             }
@@ -404,7 +425,7 @@ int move_enemies(struct tile map[MAP_ROWS][MAP_COLS],
             // Moving the enemies if they do not reach the end
             else {
                 map[path[i+num_move][0]][path[i+num_move][1]].entity = ENEMY;
-                map[path[i+num_move][0]][path[i+num_move][1]].n_enemies = tile_num_enemies;
+                map[path[i+num_move][0]][path[i+num_move][1]].n_enemies = num_enemies;
 
                 map[curr_row][curr_col].entity = EMPTY;
                 map[curr_row][curr_col].n_enemies = 0;
@@ -427,7 +448,7 @@ int has_tower(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col)
         val = 1;   
     }
     return val;
-    }
+}
 
 // Stage 3.2, Checks if there is a fortified tower in the given tile
 int is_fortified(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col) {
@@ -439,7 +460,10 @@ int is_fortified(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_c
 }
 
 // Stage 3.2, Checks if there is enough money for the upgrade
-int enough_money(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col, int *starting_money) {
+int enough_money(struct tile map[MAP_ROWS][MAP_COLS], 
+                 int tower_row, 
+                 int tower_col, 
+                 int *starting_money) {
     int val = 1;
     int money = *starting_money;
     if (map[tower_row][tower_col].entity == BASIC_TOWER) {
@@ -489,6 +513,107 @@ void upgrade_tower(struct tile map[MAP_ROWS][MAP_COLS], int *starting_money) {
     }
 }
 
+
+// Stage 3.3, makes the towers attack, made due to nesting error
+int tower_attack(struct tile map[MAP_ROWS][MAP_COLS], 
+                 int row,
+                 int col,
+                 int num_attack,
+                 int power) {
+    int num_destroyed;
+    // checks if the remaining enemies are larger than the attack power
+    if (map[row][col].n_enemies > num_attack * power) {
+        map[row][col].n_enemies -= num_attack * power;
+        num_destroyed = num_attack * power;
+    }
+    else {
+        num_destroyed = map[row][col].n_enemies;
+        map[row][col].n_enemies = 0;
+    }
+    return num_destroyed;
+}
+
+// Stage 3.3, calculates the attack for basic and power towers
+int attack_basic_and_powers(struct tile map[MAP_ROWS][MAP_COLS], 
+                         int curr_row, 
+                         int curr_col, 
+                         int num_attack) {
+    int num_destroyed = 0;                        
+    for (int i = -1; i <= 1; i++) {
+        for (int j = -1; j <= 1; j++) {
+            if (within_bounds(curr_row + i, curr_col + j)) {
+                continue;
+            }
+            else if (map[curr_row+i][curr_col+j].entity == BASIC_TOWER) {
+                num_destroyed += tower_attack(map, curr_row, curr_col, num_attack, 1);
+            } 
+            else if (map[curr_row+i][curr_col+j].entity == POWER_TOWER) {
+                num_destroyed += tower_attack(map, curr_row, curr_col, num_attack, 2);
+
+            }
+            // makes sure to return tiles to normal after enemies have died
+            if (map[curr_row][curr_col].n_enemies <= 0) {
+                map[curr_row][curr_col].n_enemies = 0;
+                map[curr_row][curr_col].entity = EMPTY;
+            }
+        }
+    }
+    return num_destroyed;
+}
+
+// Stage 3.3, calculates the attack for fortified towers
+int attack_fortified(struct tile map[MAP_ROWS][MAP_COLS], 
+                         int curr_row, 
+                         int curr_col,
+                         int num_attack) {
+    int num_destroyed = 0;                        
+    for (int i = -2; i <= 2; i++) {
+        for (int j = -2; j <= 2; j++) {
+            if (within_bounds(curr_row + i, curr_col + j)) {
+                continue;
+            }
+            else if (map[curr_row+i][curr_col+j].entity == FORTIFIED_TOWER) {
+                num_destroyed += tower_attack(map, curr_row, curr_col, num_attack, 3);
+            }
+            // makes sure to return tiles to normal after enemies have died
+            if (map[curr_row][curr_col].n_enemies <= 0) {
+                map[curr_row][curr_col].n_enemies = 0;
+                map[curr_row][curr_col].entity = EMPTY;
+            }
+        }
+    }
+    return num_destroyed;
+}
+
+
+// Stage 3.3, main attack function
+void attack(struct tile map[MAP_ROWS][MAP_COLS], 
+            int path[MAP_ROWS * MAP_COLS][2],
+            int *path_length_ptr,
+            int *starting_money) {
+    // Check enemies for towers within radius 1 from enemies for basic and powers
+    // Check enemies for towers within radius 2 from enemies for fortified
+
+    int path_length = *path_length_ptr;
+    int num_attack;
+    scanf("%d", &num_attack);
+
+    int destroyed = 0;
+    for (int i = path_length-1; i >= 0; i--) {
+        int curr_row = path[i][0];
+        int curr_col = path[i][1];
+        // Checking if there is an enemy on the tile
+        if (map[curr_row][curr_col].entity == ENEMY) {
+            // Checks the surrounding radius of 1 for basic and power tower
+
+            destroyed += attack_basic_and_powers(map, curr_row, curr_col, num_attack);
+            // Checks the surrounding raidius of 2 for fortified towers
+            destroyed += attack_fortified(map, curr_row, curr_col, num_attack);
+        }    
+    }
+    *starting_money += destroyed * 5;
+    printf("%d enemies destroyed!\n", destroyed);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// PROVIDED FUNCTIONS  ///////////////////////////////
