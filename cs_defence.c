@@ -46,19 +46,31 @@ struct tile {
 
 // TODO: Put your function prototypes here
 
-void create_enemies (struct tile map[MAP_ROWS][MAP_COLS], int row_start, int col_start, int num_enemies);
+void create_enemies (struct tile map[MAP_ROWS][MAP_COLS], 
+                     int row_start, 
+                     int col_start, 
+                     int num_enemies);
 
 int valid_position(int lake_row, int lake_col, int lake_height, int lake_width);
 
 void create_lake(struct tile map[MAP_ROWS][MAP_COLS]);
 
-void create_path(struct tile map[MAP_ROWS][MAP_COLS], int positions[4]);
+void create_path(struct tile map[MAP_ROWS][MAP_COLS], 
+                 int positions[4], 
+                 int path[MAP_ROWS * MAP_COLS][2],
+                 int* path_length_ptr);
 
 int within_bounds(int row, int col);
 
-int valid_tower_position(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col);
+int valid_tower_position(struct tile map[MAP_ROWS][MAP_COLS], 
+                         int tower_row, 
+                         int tower_col);
 
 int spawn_tower(struct tile map[MAP_ROWS][MAP_COLS], int starting_money);
+
+int move_enemies(struct tile map[MAP_ROWS][MAP_COLS], 
+                  int path[MAP_ROWS * MAP_COLS][2],
+                  int path_length);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////// PROVIDED FUNCTION PROTOTYPE  ////////////////////////////
@@ -67,7 +79,7 @@ void initialise_map(struct tile map[MAP_ROWS][MAP_COLS]);
 void print_map(struct tile map[MAP_ROWS][MAP_COLS], int lives, int money);
 void print_tile(struct tile tile, int entity_print);
 
-int main(void) {
+int main(int argc, char *argv[]) {
     // This `map` variable is a 2D array of `struct tile`s.
     // It is `MAP_ROWS` x `MAP_COLS` in size (which is 6x12 for this
     // assignment!)
@@ -131,7 +143,13 @@ int main(void) {
     // Stage 2.1 creating a path
     // Placing inputs into an array to suit the styling of the assignment (>80 char lines)
     int positions[4] = {row_start, col_start, row_end, col_end};
-    create_path(map, positions);
+
+    // Initialising variables to store path values for ease of use
+    // in further stages
+    // path stores all path values
+    int path[MAP_ROWS * MAP_COLS][2];
+    int path_length = 0;
+    create_path(map, positions, path,  &path_length);
 
     // Stage 2.1 Printing the map
     print_map(map, starting_lives, starting_money);
@@ -142,21 +160,35 @@ int main(void) {
 
     // Checking if command loop is interrupted
     while (scanf(" %c", &command) != EOF) {
-        // Spawning in enemies Command
+        // Stage 2.2 Spawning in enemies Command
         if (command == 'e') {
             scanf("%d", &num_enemies);
             create_enemies(map, row_start, col_start, num_enemies);
             print_map(map, starting_lives, starting_money);
         }
 
-        // Spawning in towers
+        // Stage 2.3 Spawning in towers
         if (command == 't') {
             starting_money = spawn_tower(map, starting_money);
             print_map(map, starting_lives, starting_money);
         }
 
+        // Stage 3.1 Moving Enemies
+        if (command == 'm') {
+            int lives_lost = move_enemies(map, path, path_length);
+            printf("%d enemies reached the end!\n", lives_lost);
+            starting_lives -= lives_lost;
+            print_map(map, starting_lives, starting_money);
+
+            if (starting_lives <= 0) {
+                printf("Oh no, you ran out of lives!");
+                break;
+            }
+        }
+
         printf("Enter Command: ");
     }
+
 
     printf("\nGame Over!\n");
 }
@@ -170,7 +202,10 @@ int main(void) {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Stage 1.2
-void create_enemies (struct tile map[MAP_ROWS][MAP_COLS], int row_start, int col_start, int num_enemies) {
+void create_enemies (struct tile map[MAP_ROWS][MAP_COLS], 
+                     int row_start, 
+                     int col_start, 
+                     int num_enemies) {
     // Load in the n number of initial enemies on the starting tiles
     // Don't change starting point if the number of enemies isn't positive
     if (num_enemies > 0) {
@@ -217,8 +252,13 @@ void create_lake(struct tile map[MAP_ROWS][MAP_COLS]) {
 }
 
 // Stage 2.1
-void create_path(struct tile map[MAP_ROWS][MAP_COLS], int positions[4]) {
+void create_path(struct tile map[MAP_ROWS][MAP_COLS], 
+                 int positions[4], 
+                 int path[MAP_ROWS * MAP_COLS][2],
+                 int* path_length_ptr) {
     // positions = {row_start, col_start, row_end, col_end}
+    // initialising variable for later use
+    int path_length_value;
 
     // Printing message in preparation to take input
     printf("Enter Path: ");
@@ -244,6 +284,13 @@ void create_path(struct tile map[MAP_ROWS][MAP_COLS], int positions[4]) {
         else {
             // Changing the tile land value depending on the inptu
             scanf(" %c", &path_command);
+            
+            // Storing the path values as we go for future use
+            *path_length_ptr += 1;
+            path_length_value = *path_length_ptr;
+            path[path_length_value - 1][0] = curr_row;
+            path[path_length_value - 1][1] = curr_col;
+
             if (path_command == 'r') {
                 map[curr_row][curr_col].land = PATH_RIGHT;
                 curr_col++;
@@ -271,7 +318,9 @@ int within_bounds(int row, int col) {
 }
 
 // Stage 2.3
-int valid_tower_position(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_col) {
+int valid_tower_position(struct tile map[MAP_ROWS][MAP_COLS], 
+                         int tower_row, 
+                         int tower_col) {
     // Stage 2.3
     // variable which tracks if it is a valid tower position or not
     int valid_pos = 1;
@@ -291,6 +340,7 @@ int valid_tower_position(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int
     return valid_pos;
 }
 
+// Stage 2.3, returns starting money
 int spawn_tower(struct tile map[MAP_ROWS][MAP_COLS], int starting_money) {
     int tower_row;
     int tower_col;
@@ -304,11 +354,51 @@ int spawn_tower(struct tile map[MAP_ROWS][MAP_COLS], int starting_money) {
     // Message in case there isn't enough money or is an invalid position
     else {
         printf("Error: Tower creation unsuccessful. ");
-        printf("Make sure you have at least $200 and that the tower is placed on a grass block with no entity.\n");
+        printf("Make sure you have at least $200 and that the ");
+        printf("tower is placed on a grass block with no entity.\n");
     }
     return starting_money;
 }
 
+// Stage 3.1, returns the number of lives lost
+int move_enemies(struct tile map[MAP_ROWS][MAP_COLS], 
+                  int path[MAP_ROWS * MAP_COLS][2],
+                  int path_length) {
+    int num_move;
+    scanf("%d", &num_move);
+
+    // Storing the number of lives lost
+    int num_lives_lost = 0;
+
+    // Going through each path tile starting from the end
+    for (int i = path_length-1; i >= 0; i--) {
+        int curr_row = path[i][0];
+        int curr_col = path[i][1];
+
+        // Checking if there is an enemy on the tile
+        if (map[curr_row][curr_col].entity == ENEMY) {
+            // finding the number of enemy in the tile
+            int tile_num_enemies = map[curr_row][curr_col].n_enemies;
+
+            // Checking if the move will make the enemy reach the end
+            if (i + num_move >= path_length) {
+                num_lives_lost += tile_num_enemies;
+                map[curr_row][curr_col].entity = EMPTY;
+                map[curr_row][curr_col].n_enemies = 0;
+            }
+
+            // Moving the enemies if they do not reach the end
+            else {
+                map[path[i+num_move][0]][path[i+num_move][1]].entity = ENEMY;
+                map[path[i+num_move][0]][path[i+num_move][1]].n_enemies = tile_num_enemies;
+
+                map[curr_row][curr_col].entity = EMPTY;
+                map[curr_row][curr_col].n_enemies = 0;
+            }
+        }
+    }  
+    return num_lives_lost;
+}
 ////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// PROVIDED FUNCTIONS  ///////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
