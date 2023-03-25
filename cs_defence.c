@@ -81,14 +81,14 @@ int enough_money(struct tile map[MAP_ROWS][MAP_COLS], int tower_row, int tower_c
 void upgrade_tower(struct tile map[MAP_ROWS][MAP_COLS], int *starting_money);
 
 int attack_basic_and_powers(struct tile map[MAP_ROWS][MAP_COLS], 
-                         int curr_row, 
-                         int curr_col,
-                         int num_attack);
+                            int curr_row, 
+                            int curr_col,
+                            int num_attack);
 
 int attack_fortified(struct tile map[MAP_ROWS][MAP_COLS], 
-                         int curr_row, 
-                         int curr_col,
-                         int num_attack);
+                     int curr_row, 
+                     int curr_col,
+                     int num_attack);
 
 void attack(struct tile map[MAP_ROWS][MAP_COLS], 
             int path[MAP_ROWS * MAP_COLS][2],
@@ -101,6 +101,12 @@ void remove_towers(struct tile map[MAP_ROWS][MAP_COLS], int row, int col);
 void reduce_offset(int *row_offset, int *col_offset, int row_spacing, int col_spacing);
 
 void rain(struct tile map[MAP_ROWS][MAP_COLS]);
+
+void flood_single_tile(struct tile map[MAP_ROWS][MAP_COLS], int row, int col);
+
+void flood_tile(struct tile map[MAP_ROWS][MAP_COLS], int row, int col);
+
+void flood(struct tile map[MAP_ROWS][MAP_COLS]);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////// PROVIDED FUNCTION PROTOTYPE  ////////////////////////////
@@ -230,6 +236,15 @@ int main(int argc, char *argv[]) {
 
         if (command == 'r') {
             rain(map);
+            print_map(map, starting_lives, starting_money);
+        }
+
+        if (command == 'f') {
+            int num_flood;
+            scanf("%d", &num_flood);
+            for (int i = 0; i < num_flood; i++) {
+                flood(map);
+            }
             print_map(map, starting_lives, starting_money);
         }
 
@@ -627,7 +642,7 @@ void attack(struct tile map[MAP_ROWS][MAP_COLS],
     printf("%d enemies destroyed!\n", destroyed);
 }
 
-// Remove the tower from the tile if the rain lands on the tile
+// Stage 3.4, Remove the tower from the tile if the rain lands on the tile
 void remove_towers(struct tile map[MAP_ROWS][MAP_COLS], int row, int col) {
     if (map[row][col].entity == BASIC_TOWER) {
         map[row][col].entity = EMPTY;
@@ -637,7 +652,7 @@ void remove_towers(struct tile map[MAP_ROWS][MAP_COLS], int row, int col) {
     }
 }
 
-// Clean the offset values so that they are easy to use
+// Stage 3.4, Clean the offset values so that they are easy to use
 // turns negative and large values to values that are within the map
 void reduce_offset(int *row_offset, int *col_offset, int row_spacing, int col_spacing) {
     int r_offset = *row_offset;
@@ -684,6 +699,49 @@ void rain(struct tile map[MAP_ROWS][MAP_COLS]) {
         }
         curr_row += row_spacing;
     }
+}
+
+// Stage 4.1, calculates if the tile should be flooded
+void flood_single_tile(struct tile map[MAP_ROWS][MAP_COLS], int row, int col) {
+    if (row >= 0 && row < MAP_ROWS) {
+        if (col >= 0 && col < MAP_COLS) {
+            if (map[row][col].land == GRASS) {
+                map[row][col].land = WATER;
+                remove_towers(map, row, col);
+            }
+        }
+    }
+}
+
+// Stage 4.2, checks the surrounding tile to see if it should be flooded
+void flood_tile(struct tile map[MAP_ROWS][MAP_COLS], int row, int col) {
+    flood_single_tile(map, row+1, col);
+    flood_single_tile(map, row-1, col);
+    flood_single_tile(map, row, col+1);
+    flood_single_tile(map, row, col-1);    
+}
+
+// Stage 4.1, main flood function
+void flood(struct tile map[MAP_ROWS][MAP_COLS]) {
+    int water_tiles[MAP_ROWS*MAP_COLS][2];
+    int num_water_tiles = 0;
+
+    // Stores the position of water tiles
+    for (int i = 0; i < MAP_ROWS; i++) {
+        for (int j = 0; j < MAP_COLS; j++) {
+            if (map[i][j].land == WATER) {
+                water_tiles[num_water_tiles][0] = i;
+                water_tiles[num_water_tiles][1] = j;
+                num_water_tiles++;
+            }
+        }
+    }
+
+    // Goes through each water tile from the given array
+    // Floods that specific tile
+    for (int i = 0; i < num_water_tiles; i++) {
+        flood_tile(map, water_tiles[i][0], water_tiles[i][1]);
+    }   
 }
 
 ////////////////////////////////////////////////////////////////////////////////
