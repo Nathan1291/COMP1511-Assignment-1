@@ -95,6 +95,13 @@ void attack(struct tile map[MAP_ROWS][MAP_COLS],
             int *path_length_ptr,
             int *starting_money);
 
+void remove_towers(struct tile map[MAP_ROWS][MAP_COLS], int row, int col);
+
+
+void reduce_offset(int *row_offset, int *col_offset, int row_spacing, int col_spacing);
+
+void rain(struct tile map[MAP_ROWS][MAP_COLS]);
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////// PROVIDED FUNCTION PROTOTYPE  ////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -218,6 +225,11 @@ int main(int argc, char *argv[]) {
         // Stage 3.2 Tower Attacks
         if (command == 'a') {
             attack(map, path,  &path_length, &starting_money);
+            print_map(map, starting_lives, starting_money);
+        }
+
+        if (command == 'r') {
+            rain(map);
             print_map(map, starting_lives, starting_money);
         }
 
@@ -613,6 +625,65 @@ void attack(struct tile map[MAP_ROWS][MAP_COLS],
     }
     *starting_money += destroyed * 5;
     printf("%d enemies destroyed!\n", destroyed);
+}
+
+// Remove the tower from the tile if the rain lands on the tile
+void remove_towers(struct tile map[MAP_ROWS][MAP_COLS], int row, int col) {
+    if (map[row][col].entity == BASIC_TOWER) {
+        map[row][col].entity = EMPTY;
+    }
+    if (map[row][col].entity == POWER_TOWER) {
+        map[row][col].entity = EMPTY;
+    }
+}
+
+// Clean the offset values so that they are easy to use
+// turns negative and large values to values that are within the map
+void reduce_offset(int *row_offset, int *col_offset, int row_spacing, int col_spacing) {
+    int r_offset = *row_offset;
+    int c_offset = * col_offset;
+
+    r_offset %= row_spacing;
+    c_offset %= col_spacing;
+
+    if (r_offset < 0) {
+        r_offset += row_spacing;
+    }
+    if (c_offset < 0) {
+        c_offset += col_spacing;
+    }
+
+    *row_offset = r_offset;
+    *col_offset = c_offset;
+}
+
+// Stage 3.4, upgrades the tower if the conditions are correct
+void rain(struct tile map[MAP_ROWS][MAP_COLS]) {
+    int row_spacing;
+    int col_spacing;
+    int row_offset;
+    int col_offset;
+
+    scanf("%d %d %d %d", &row_spacing, &col_spacing, &row_offset, &col_offset);
+
+    reduce_offset(&row_offset, &col_offset, row_spacing, col_spacing);
+
+    int curr_row = row_offset;
+    int curr_col;
+
+    // Double nested for loop to go through each tile where there will be rain
+    // checks if it will spawn water, then despawn a tower if it does
+    while (curr_row < MAP_ROWS) {
+        curr_col = col_offset;
+        while (curr_col < MAP_COLS) {
+            if (map[curr_row][curr_col].land == GRASS) {
+                map[curr_row][curr_col].land = WATER;
+                remove_towers(map, curr_row, curr_col);
+            }
+            curr_col += col_spacing;
+        }
+        curr_row += row_spacing;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
