@@ -10,6 +10,16 @@
 #define MAP_ROWS 6
 #define MAP_COLS 12
 
+// Defining tower cost constants
+#define BASIC_TOWER_COST 200
+#define POWER_TOWER_COST 300
+#define FORTIFIED_TOWER_COST 500
+
+// defining attack power constants
+#define BT_ATK 1
+#define PT_ATK 2
+#define FT_ATK 3
+
 ////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// USER DEFINED TYPES  ////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -43,8 +53,6 @@ struct tile {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////  YOUR FUNCTION PROTOTYPE  /////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-
-// TODO: Put your function prototypes here
 
 void create_enemies (struct tile map[MAP_ROWS][MAP_COLS], 
                      int row_start, 
@@ -83,12 +91,12 @@ void upgrade_tower(struct tile map[MAP_ROWS][MAP_COLS], int *starting_money);
 int attack_basic_and_powers(struct tile map[MAP_ROWS][MAP_COLS], 
                             int curr_row, 
                             int curr_col,
-                            int num_attack);
+                            int num_atk);
 
 int attack_fortified(struct tile map[MAP_ROWS][MAP_COLS], 
                      int curr_row, 
                      int curr_col,
-                     int num_attack);
+                     int num_atk);
 
 void attack(struct tile map[MAP_ROWS][MAP_COLS], 
             int path[MAP_ROWS * MAP_COLS][2],
@@ -107,6 +115,16 @@ void flood_single_tile(struct tile map[MAP_ROWS][MAP_COLS], int row, int col);
 void flood_tile(struct tile map[MAP_ROWS][MAP_COLS], int row, int col);
 
 void flood(struct tile map[MAP_ROWS][MAP_COLS]);
+
+void spawn_teleporter(struct tile map[MAP_ROWS][MAP_COLS],
+                      int path[MAP_ROWS * MAP_COLS][2],
+                      int *path_length_ptr,
+                      int path_start_num, 
+                      int path_end_num);
+
+void create_teleporter(struct tile map[MAP_ROWS][MAP_COLS],
+                      int path[MAP_ROWS * MAP_COLS][2],
+                      int *path_length_ptr);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////// PROVIDED FUNCTION PROTOTYPE  ////////////////////////////
@@ -228,23 +246,31 @@ int main(int argc, char *argv[]) {
             print_map(map, starting_lives, starting_money);
         }
 
-        // Stage 3.2 Tower Attacks
+        // Stage 3.3 Tower Attacks
         if (command == 'a') {
             attack(map, path,  &path_length, &starting_money);
             print_map(map, starting_lives, starting_money);
         }
 
+        // Stage 3.4 Rain
         if (command == 'r') {
             rain(map);
             print_map(map, starting_lives, starting_money);
         }
 
+        // Stage 4.1 Rain
         if (command == 'f') {
             int num_flood;
             scanf("%d", &num_flood);
             for (int i = 0; i < num_flood; i++) {
                 flood(map);
             }
+            print_map(map, starting_lives, starting_money);
+        }
+
+        // Stage 4.2 Teleporters
+        if (command == 'c') {
+            create_teleporter(map, path,  &path_length);
             print_map(map, starting_lives, starting_money);
         }
 
@@ -353,6 +379,7 @@ void create_path(struct tile map[MAP_ROWS][MAP_COLS],
             path[path_length_value - 1][0] = curr_row;
             path[path_length_value - 1][1] = curr_col;
 
+            // Changing the tile values to fit the right path
             if (path_command == 'r') {
                 map[curr_row][curr_col].land = PATH_RIGHT;
                 curr_col++;
@@ -410,13 +437,13 @@ int spawn_tower(struct tile map[MAP_ROWS][MAP_COLS], int starting_money) {
     // Check if there is enough money and if it is a valid position, then add it
     if (valid_tower_position(map, tower_row, tower_col) && starting_money > 200) {
         map[tower_row][tower_col].entity = BASIC_TOWER;
-        starting_money -= 200;
+        starting_money -= BASIC_TOWER_COST;
         printf("Tower successfully created!\n");
     }
     // Message in case there isn't enough money or is an invalid position
     else {
         printf("Error: Tower creation unsuccessful. ");
-        printf("Make sure you have at least $200 and that the ");
+        printf("Make sure you have at least $%d and that the ", BASIC_TOWER_COST);
         printf("tower is placed on a grass block with no entity.\n");
     }
     return starting_money;
@@ -494,12 +521,12 @@ int enough_money(struct tile map[MAP_ROWS][MAP_COLS],
     int val = 1;
     int money = *starting_money;
     if (map[tower_row][tower_col].entity == BASIC_TOWER) {
-        if (money < 300) {
+        if (money < POWER_TOWER_COST) {
             val = 0;
         }
     }
     else if (map[tower_row][tower_col].entity == POWER_TOWER) {
-        if (money < 500) {
+        if (money < FORTIFIED_TOWER_COST) {
             val = 0;
         }
     }
@@ -529,12 +556,12 @@ void upgrade_tower(struct tile map[MAP_ROWS][MAP_COLS], int *starting_money) {
         if (map[tower_row][tower_col].entity == BASIC_TOWER) {
             map[tower_row][tower_col].entity = POWER_TOWER;
 
-            *starting_money -= 300;
+            *starting_money -= POWER_TOWER_COST;
         }
         else if (map[tower_row][tower_col].entity == POWER_TOWER) {
             map[tower_row][tower_col].entity = FORTIFIED_TOWER;
 
-            *starting_money -= 500;
+            *starting_money -= FORTIFIED_TOWER_COST;
         }
         printf("Upgrade Successful!\n");
     }
@@ -545,13 +572,13 @@ void upgrade_tower(struct tile map[MAP_ROWS][MAP_COLS], int *starting_money) {
 int tower_attack(struct tile map[MAP_ROWS][MAP_COLS], 
                  int row,
                  int col,
-                 int num_attack,
+                 int num_atk,
                  int power) {
     int num_destroyed;
     // checks if the remaining enemies are larger than the attack power
-    if (map[row][col].n_enemies > num_attack * power) {
-        map[row][col].n_enemies -= num_attack * power;
-        num_destroyed = num_attack * power;
+    if (map[row][col].n_enemies > num_atk * power) {
+        map[row][col].n_enemies -= num_atk * power;
+        num_destroyed = num_atk * power;
     }
     else {
         num_destroyed = map[row][col].n_enemies;
@@ -564,7 +591,7 @@ int tower_attack(struct tile map[MAP_ROWS][MAP_COLS],
 int attack_basic_and_powers(struct tile map[MAP_ROWS][MAP_COLS], 
                          int curr_row, 
                          int curr_col, 
-                         int num_attack) {
+                         int num_atk) {
     int num_destroyed = 0;                        
     for (int i = -1; i <= 1; i++) {
         for (int j = -1; j <= 1; j++) {
@@ -572,10 +599,10 @@ int attack_basic_and_powers(struct tile map[MAP_ROWS][MAP_COLS],
                 continue;
             }
             else if (map[curr_row+i][curr_col+j].entity == BASIC_TOWER) {
-                num_destroyed += tower_attack(map, curr_row, curr_col, num_attack, 1);
+                num_destroyed += tower_attack(map, curr_row, curr_col, num_atk, BT_ATK);
             } 
             else if (map[curr_row+i][curr_col+j].entity == POWER_TOWER) {
-                num_destroyed += tower_attack(map, curr_row, curr_col, num_attack, 2);
+                num_destroyed += tower_attack(map, curr_row, curr_col, num_atk, PT_ATK);
 
             }
             // makes sure to return tiles to normal after enemies have died
@@ -592,7 +619,7 @@ int attack_basic_and_powers(struct tile map[MAP_ROWS][MAP_COLS],
 int attack_fortified(struct tile map[MAP_ROWS][MAP_COLS], 
                          int curr_row, 
                          int curr_col,
-                         int num_attack) {
+                         int num_atk) {
     int num_destroyed = 0;                        
     for (int i = -2; i <= 2; i++) {
         for (int j = -2; j <= 2; j++) {
@@ -600,7 +627,7 @@ int attack_fortified(struct tile map[MAP_ROWS][MAP_COLS],
                 continue;
             }
             else if (map[curr_row+i][curr_col+j].entity == FORTIFIED_TOWER) {
-                num_destroyed += tower_attack(map, curr_row, curr_col, num_attack, 3);
+                num_destroyed += tower_attack(map, curr_row, curr_col, num_atk, FT_ATK);
             }
             // makes sure to return tiles to normal after enemies have died
             if (map[curr_row][curr_col].n_enemies <= 0) {
@@ -622,8 +649,8 @@ void attack(struct tile map[MAP_ROWS][MAP_COLS],
     // Check enemies for towers within radius 2 from enemies for fortified
 
     int path_length = *path_length_ptr;
-    int num_attack;
-    scanf("%d", &num_attack);
+    int num_atk;
+    scanf("%d", &num_atk);
 
     int destroyed = 0;
     for (int i = path_length-1; i >= 0; i--) {
@@ -633,9 +660,9 @@ void attack(struct tile map[MAP_ROWS][MAP_COLS],
         if (map[curr_row][curr_col].entity == ENEMY) {
             // Checks the surrounding radius of 1 for basic and power tower
 
-            destroyed += attack_basic_and_powers(map, curr_row, curr_col, num_attack);
+            destroyed += attack_basic_and_powers(map, curr_row, curr_col, num_atk);
             // Checks the surrounding raidius of 2 for fortified towers
-            destroyed += attack_fortified(map, curr_row, curr_col, num_attack);
+            destroyed += attack_fortified(map, curr_row, curr_col, num_atk);
         }    
     }
     *starting_money += destroyed * 5;
@@ -713,17 +740,17 @@ void flood_single_tile(struct tile map[MAP_ROWS][MAP_COLS], int row, int col) {
     }
 }
 
-// Stage 4.2, checks the surrounding tile to see if it should be flooded
+// Stage 4.1, checks the surrounding tile to see if it should be flooded
 void flood_tile(struct tile map[MAP_ROWS][MAP_COLS], int row, int col) {
-    flood_single_tile(map, row+1, col);
-    flood_single_tile(map, row-1, col);
-    flood_single_tile(map, row, col+1);
-    flood_single_tile(map, row, col-1);    
+    flood_single_tile(map, row + 1, col);
+    flood_single_tile(map, row - 1, col);
+    flood_single_tile(map, row, col + 1);
+    flood_single_tile(map, row, col - 1);    
 }
 
 // Stage 4.1, main flood function
 void flood(struct tile map[MAP_ROWS][MAP_COLS]) {
-    int water_tiles[MAP_ROWS*MAP_COLS][2];
+    int water_tiles[MAP_ROWS * MAP_COLS][2];
     int num_water_tiles = 0;
 
     // Stores the position of water tiles
@@ -744,6 +771,72 @@ void flood(struct tile map[MAP_ROWS][MAP_COLS]) {
     }   
 }
 
+// Stage 4.2, manipulates the paths for the teleporter logic
+void spawn_teleporter(struct tile map[MAP_ROWS][MAP_COLS],
+                      int path[MAP_ROWS * MAP_COLS][2],
+                      int *path_length_ptr,
+                      int path_start_num, 
+                      int path_end_num) {
+    
+    // Despawning path in between teleport portals
+    for (int i = path_start_num+1; i < path_end_num; i++) {
+        map[path[i][0]][path[i][1]].land = GRASS;
+        map[path[i][0]][path[i][1]].entity = EMPTY;
+        map[path[i][0]][path[i][1]].n_enemies = 0;
+    }
+
+    // changes the path array variable to remove the values where the teleporter removes
+    for (int i = 0; i < *path_length_ptr - path_end_num; i++) {
+        path[i+1+path_start_num][0] = path[i+path_end_num][0];
+        path[i+1+path_start_num][1] = path[i+path_end_num][1];     
+    }
+
+    *path_length_ptr -= path_end_num - path_start_num - 1;
+}
+
+
+// Stage 4.2, Main teleporter function
+void create_teleporter(struct tile map[MAP_ROWS][MAP_COLS],
+                      int path[MAP_ROWS * MAP_COLS][2],
+                      int *path_length_ptr) {
+    int tele_start_row;
+    int tele_start_col;
+    int tele_end_row;
+    int tele_end_col;
+
+    int path_start_num = -1;
+    int path_end_num = -1;
+    scanf("%d %d %d %d", &tele_start_row, &tele_start_col, &tele_end_row, &tele_end_col);
+
+    // Checks the path for the teleporter locations
+    for (int i = 0; i < *path_length_ptr; i++) {
+        if (path[i][0] == tele_start_row && path[i][1] == tele_start_col) {
+            path_start_num = i;
+        }
+        else if (path[i][0] == tele_end_row && path[i][1] == tele_end_col) {
+            path_end_num = i;
+        }
+    }
+
+    // error handling
+    if (path_start_num == -1 || path_end_num == -1) {
+        printf("Error: Teleporters can only be created on path tiles.\n");
+    }
+    else {
+        // in case the end teleporter is earlier than the start teleporter
+        if (path_start_num > path_end_num) {
+            int temp = path_start_num;
+            path_start_num = path_end_num;
+            path_end_num = temp;
+        }
+        // Spawns the teleporter if all conditions pass
+        map[tele_start_row][tele_start_col].land = TELEPORTER;
+        map[tele_end_row][tele_end_col].land = TELEPORTER;    
+        spawn_teleporter(map, path, path_length_ptr, path_start_num, path_end_num);
+    }
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// PROVIDED FUNCTIONS  ///////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -756,6 +849,7 @@ void flood(struct tile map[MAP_ROWS][MAP_COLS]) {
  * Returns:
  *     Nothing.
  */
+ 
 void initialise_map(struct tile map[MAP_ROWS][MAP_COLS]) {
     for (int row = 0; row < MAP_ROWS; ++row) {
         for (int col = 0; col < MAP_COLS; ++col) {
